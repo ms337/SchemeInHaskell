@@ -1,0 +1,1 @@
+ghc -package parsec -fglasgow-exts -o lisp Repl.hs
