@@ -39,6 +39,7 @@ showVal (Func {params = args, vararg = varargs, body = body, closure = env}) =
                                                               Just arg -> " . " ++  arg) ++ ") ...)"
 showVal (Port _) = "<IO port>"
 showVal (IOFunc _) = "<IO primitive>"
+showVal (Void) = ""
 
 
 unwordsList :: [LispVal] -> String
@@ -342,7 +343,7 @@ makeMacro = makeFunc True Nothing
 nullEnv :: IO Env
 nullEnv = newIORef []
 
--- monad transformer that lets you combine the functionality of multiple monads
+
 
 -- type IOThrowsError = ExceptT LispError IO
 

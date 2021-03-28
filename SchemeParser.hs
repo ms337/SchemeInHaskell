@@ -13,6 +13,7 @@ module SchemeParser (
 )where
 
 import Text.ParserCombinators.Parsec hiding (spaces)
+import Text.Parsec.Char hiding (spaces)
 import System.Environment
 import Data.IORef
 import Control.Monad.Except
@@ -21,20 +22,16 @@ import Types
 symbol :: Parser Char
 symbol = oneOf "!#$%&|*+-/:<=>?@^_~"
 
-{-readExpr :: String -> String
-readExpr input = case parse parseExpr "lisp" input of
-    Left err -> "No match: " ++ show err
-  --  Right _ -> "Found value"
-    Right val -> "Found "  ++ show val -}
-
 
 -- default Parsec spaces function just parses a whitespace character
 spaces :: Parser ()
 spaces = skipMany1 space
 
-
-
--- Generally, we want something more out of our parsers: we want them to convert the input into a data structure that we can traverse easily.
+comments :: Parser LispVal
+comments = do
+            char ';'
+            manyTill anyChar (try newline) 
+            return Void
 
 parseString :: Parser LispVal
 parseString = do
@@ -42,8 +39,6 @@ parseString = do
                 x <- many (noneOf "\"") -- check this
                 char '"'
                 return $ String x
-
--- In general, use >> if the actions don't return a value, >>= if you'll be immediately passing that value into the next action, and do-notation otherwise.
 
 parseAtom :: Parser LispVal
 parseAtom = do
@@ -55,9 +50,6 @@ parseAtom = do
                         "#f" -> Bool False 
                         _    -> Atom atom)
                         -- are there any other literals in Scheme?
--- backtracking?
-
-
 
 parseNumber :: Parser LispVal
 --parseNumber = return Number <*> read <$> many1 digit
@@ -111,16 +103,17 @@ parseBracketed = do
 
 -- parseExpr
 parseExpr :: Parser LispVal
-parseExpr = parseAtom 
-            <|> parseString 
-            <|> parseNumber 
-            <|> parseCharacter
-            <|> parseQuoted
-            <|> parseBracketed
-            <|> parseFloat
-            <|> parseQuoted
-            <|> parseQuasiQuoted
-            <|> parseUnQuote
+parseExpr =  comments 
+                {->> (parseAtom 
+                <|> parseString 
+                <|> parseNumber 
+                <|> parseCharacter
+                <|> parseQuoted
+                <|> parseBracketed
+                <|> parseFloat
+                <|> parseQuoted
+                <|> parseQuasiQuoted
+                <|> parseUnQuote) -}
 
 
 parseFloat :: Parser LispVal

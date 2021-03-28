@@ -21,6 +21,7 @@ data LispVal = Atom String
              | Func {isMacro:: Bool, params :: [String], vararg :: (Maybe String), body :: [LispVal], closure :: Env }
              | IOFunc ([LispVal] -> IOThrowsError LispVal)
              | Port Handle
+             | Void
 
 data LispError = NumArgs Integer [LispVal]
                | TypeMismatch String LispVal
