@@ -62,5 +62,6 @@
 
 
 (define (begin . args) (car (map display (reverse args)))) 
+(display "Standard Library loaded.")
 
 

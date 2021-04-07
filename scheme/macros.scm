@@ -21,5 +21,4 @@
 (define-syntax (switch var body)
     `(fold (lambda (accum pair) ('if ,(equal? (car pair) var) (cadr pair) '())) 
         '()
-        ,body)) 
- 
+        ,body))

@@ -1,3 +1,4 @@
+{-# LANGUAGE ExistentialQuantification #-}
 module Evaluator (
     readExpr, 
     eval,
@@ -31,6 +32,7 @@ showVal (Atom name) = name
 showVal (Number contents) = show contents
 showVal (Bool True) = "#t"
 showVal (Bool False) = "#f"
+showVal (LispFloat double) = show double
 showVal (List contents) = "(" ++ unwordsList contents ++ ")"
 showVal (DottedList head tail) = "(" ++ unwordsList head ++ " . " ++ showVal tail ++ ")"
 showVal (PrimitiveFunc _) = "<primitive>"
@@ -48,24 +50,6 @@ unwordsList = unwords . map showVal
 instance Show LispVal where show = showVal
 
 {-The purpose of an evaluator is to map some "code" data type into some "data" data type, the result of the evaluation-}
-
-{-
-eval :: LispVal -> ThrowsError LispVal
-eval val@(String _) = return val
-eval val@(Number _) = return val
-eval val@(Bool _) = return val
-eval val@(Character _) = return val
--- missing vals?
-eval (List [Atom "quote", val]) = return val
-eval (List [Atom "if", pred, conseq, alt])  = do
-                                                result <- eval pred
-                                                case result of 
-                                                    Bool False -> eval alt
-                                                    otherwise -> eval conseq
-eval (List (Atom func : args)) = mapM eval args >>= apply func
-eval badForm = throwError $ BadSpecialForm "Unrecognized special form" badForm
--}
-
 
 eval :: Env -> LispVal -> IOThrowsError LispVal
 eval env val@(String _) = return val
@@ -101,12 +85,9 @@ eval env (List (function : args)) = do
                                         case func of 
                                             Func {isMacro = True} -> apply func args >>= eval env
                                             _ -> mapM (eval env) args >>= apply func
+eval env (Void) = throwError $ Default "Comment found"
 eval env badForm = throwError $ BadSpecialForm "Unrecognized special form" badForm
 
-{-
-apply :: String -> [LispVal] -> ThrowsError LispVal
-apply func args = maybe (throwError $ NotFunction "Unrecognized primitive function args" func) ($ args) (lookup func primitives)
--}
 apply :: LispVal -> [LispVal] -> IOThrowsError LispVal
 apply (PrimitiveFunc func) args = liftThrows $ func args
 apply (Func isMacro params varargs body closure) args =
@@ -120,8 +101,6 @@ apply (Func isMacro params varargs body closure) args =
                 Just argName -> liftIO $ bindVars env [(argName, List $ remainingArgs)]
                 Nothing -> return env
 apply (IOFunc func) args = func args
-
-
 
 
 primitives :: [(String, [LispVal] -> ThrowsError LispVal)]
@@ -236,22 +215,6 @@ eqv badArgList = throwError $ NumArgs 2 badArgList
 display :: [LispVal] -> ThrowsError LispVal
 display [val] = return $ val
 
-{-
-unpackString :: LispVal -> 
-unpackString (String s) = s
-unpackString (Atom s) = s
-unpackString (Number n) = n
-unpackString (Bool b) = b 
-
-
-typeTest :: (a -> Bool) -> [LispVal] -> LispVal
-typeTest pred (param:xs) = case (pred param) of
-                            True -> Bool True
-                            False -> Bool False
--}
-
-
-
 -----
 -----
 
@@ -266,6 +229,7 @@ showError (NumArgs expected found)      = "Expected " ++ show expected
 showError (TypeMismatch expected found) = "Invalid type: expected " ++ expected
                                        ++ ", found " ++ show found
 showError (Parser parseErr)             = "Parse error at " ++ show parseErr
+showError (Default str)                 = ""
 
 instance Show LispError where show = showError
 
@@ -277,14 +241,16 @@ trapError action = catchError action (return . show)
 extractValue :: ThrowsError a -> a
 extractValue (Right val) = val
 
+-- parse :: Stream s Identity t => Parsec s () a -> SourceName -> s -> Either ParseError aSource
 readOrThrow :: Parser a -> String -> ThrowsError a
 readOrThrow parser input = case parse parser "lisp" input of
     Left err -> throwError $ Parser err
     Right val -> return val
 
 readExpr :: String -> ThrowsError LispVal
+-- readExpr = readOrThrow (parseExpr <|> parseComments)
 readExpr = readOrThrow parseExpr
-readExprList = readOrThrow (endBy parseExpr spaces)
+readExprList = readOrThrow (endBy parseExpr (spaces <|> eof)) 
 
 
 data Unpacker = forall a. Eq a => AnyUnpacker (LispVal -> ThrowsError a)
